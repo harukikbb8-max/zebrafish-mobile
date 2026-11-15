@@ -1,4 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { Platform } from 'react-native';
+import * as SQLite from 'expo-sqlite';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -10,7 +12,26 @@ import { SyncGate } from '@/ui/SyncGate';
 import { ToastHost } from '@/ui/Toast';
 import { C } from '@/lib/theme';
 
+/**
+ * web(ローカル確認用)のみ: expo-sqlite の同期 API は Worker の起動完了前に呼ぶと
+ * タイムアウトするため、先に非同期で一度開いて Worker を起こしてから本体を描画する。
+ * iOS/Android では何もせず素通りする。
+ */
 export default function RootLayout() {
+  const [ready, setReady] = useState(Platform.OS !== 'web');
+  useEffect(() => {
+    if (Platform.OS !== 'web') return;
+    // 新しい Chrome は Atomics.pause を持ち、expo-sqlite の同期待ちが約50msで打ち切られる。
+    // 無効化して従来のビジーループ(十分長い上限)へフォールバックさせる。
+    try {
+      delete (Atomics as any).pause;
+    } catch {}
+    SQLite.openDatabaseAsync(':memory:').then(() => setReady(true));
+  }, []);
+  return ready ? <App /> : null;
+}
+
+function App() {
   // 起動時に一度だけ DB を初期化(スキーマ作成・初期データ投入)
   useState(() => {
     db();

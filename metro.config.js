@@ -8,4 +8,12 @@ const config = getDefaultConfig(__dirname);
 // (本アプリは iOS/Android ネイティブのみ対象。web ビルドの解決エラー回避用)
 config.resolver.assetExts.push('wasm');
 
+// web で expo-sqlite(wasm) が SharedArrayBuffer を使えるよう、dev サーバーに COOP/COEP ヘッダを付ける
+config.server = config.server || {};
+config.server.enhanceMiddleware = (middleware) => (req, res, next) => {
+  res.setHeader('Cross-Origin-Embedder-Policy', 'credentialless');
+  res.setHeader('Cross-Origin-Opener-Policy', 'same-origin');
+  return middleware(req, res, next);
+};
+
 module.exports = config;
